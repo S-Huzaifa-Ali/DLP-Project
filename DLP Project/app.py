@@ -1,10 +1,3 @@
-"""
-Flask web application for Food Detection & Classification.
-Serves the frontend and provides REST API endpoints for:
-  - /api/detect: Upload image → detect food → classify → return results
-  - /api/nutrition: Get nutritional info for a specific food + portion
-"""
-
 import os
 import io
 import base64
@@ -18,16 +11,13 @@ from models.detector import FoodDetector
 from models.classifier import FoodClassifier
 from utils.nutrition import NutritionLookup
 
-# ----- Initialize Flask App -----
 app = Flask(__name__, static_folder="static", static_url_path="")
 app.config["MAX_CONTENT_LENGTH"] = config.MAX_CONTENT_LENGTH
 
-# ----- Load Models (once at startup) -----
 print("=" * 60)
 print("  Food Detection & Classification System")
 print("=" * 60)
 
-# Initialize models with error handling
 detector = None
 classifier = None
 nutrition = None
@@ -51,34 +41,22 @@ print("=" * 60)
 
 
 def allowed_file(filename):
-    """Check if the uploaded file has an allowed extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
 
 def pil_to_base64(pil_image, fmt="JPEG"):
-    """Convert a PIL Image to a base64-encoded string."""
     buffer = io.BytesIO()
     pil_image.save(buffer, format=fmt)
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
-# ----- Serve Frontend -----
 @app.route("/")
 def index():
-    """Serve the main HTML page."""
     return send_from_directory("static", "index.html")
 
 
-# ----- API: Detect & Classify -----
 @app.route("/api/detect", methods=["POST"])
 def api_detect():
-    """
-    Upload an image, detect food items, classify each, and return results.
-
-    Request: multipart/form-data with 'image' file
-    Response: JSON with detections, classifications, and nutritional data
-    """
-    # Validate models are loaded
     if detector is None:
         return jsonify({"error": "Detection model not loaded. Check server logs."}), 503
     if classifier is None:
@@ -95,15 +73,12 @@ def api_detect():
         return jsonify({"error": f"Invalid file type. Allowed: {config.ALLOWED_EXTENSIONS}"}), 400
 
     try:
-        # Read and validate image
         image = Image.open(file.stream).convert("RGB")
         img_width, img_height = image.size
 
-        # Step 1: Run YOLO detection
         detections = detector.detect(image)
 
         if len(detections) == 0:
-            # Return the image but with no detections
             return jsonify({
                 "success": True,
                 "message": "No food items detected in the image.",
@@ -113,13 +88,10 @@ def api_detect():
                 "original_image": pil_to_base64(image)
             })
 
-        # Step 2: Classify each detected crop and get nutrition
         results = []
         for i, det in enumerate(detections):
-            # Classify the cropped food image
             predictions = classifier.classify(det["crop"], top_k=config.TOP_K)
 
-            # Get nutrition for the top prediction
             top_food = predictions[0]["class_name"]
             nutrition_info = None
             if nutrition is not None:
@@ -128,7 +100,6 @@ def api_detect():
                     bbox_area_ratio=det["bbox_area_ratio"]
                 )
 
-            # Convert crop to base64 for frontend display
             crop_b64 = pil_to_base64(det["crop"])
 
             results.append({
@@ -141,7 +112,6 @@ def api_detect():
                 "nutrition": nutrition_info
             })
 
-        # Encode original image as base64
         original_b64 = pil_to_base64(image)
 
         return jsonify({
@@ -158,15 +128,8 @@ def api_detect():
         return jsonify({"error": f"Processing failed: {str(e)}"}), 500
 
 
-# ----- API: Get Nutrition -----
 @app.route("/api/nutrition", methods=["POST"])
 def api_nutrition():
-    """
-    Get nutritional info for a specific food with portion adjustment.
-
-    Request JSON: { "food_name": str, "portion_multiplier": float }
-    Response JSON: nutritional data
-    """
     if nutrition is None:
         return jsonify({"error": "Nutrition data not loaded."}), 503
 
@@ -184,10 +147,8 @@ def api_nutrition():
     return jsonify({"success": True, "nutrition": result})
 
 
-# ----- API: Search Foods -----
 @app.route("/api/search", methods=["GET"])
 def api_search():
-    """Search food items by name."""
     query = request.args.get("q", "")
     if not query:
         return jsonify({"error": "Missing query parameter 'q'."}), 400
@@ -199,7 +160,6 @@ def api_search():
     return jsonify({"success": True, "results": results})
 
 
-# ----- Run Server -----
 if __name__ == "__main__":
     print(f"\n  Starting server at http://localhost:{config.PORT}")
     print(f"  Open your browser and navigate to http://localhost:{config.PORT}\n")

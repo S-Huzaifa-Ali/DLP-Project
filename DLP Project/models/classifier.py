@@ -195,14 +195,12 @@ class FoodClassifier:
             image = Image.fromarray(image)
         image = image.convert("RGB")
 
-        # Preprocess and run inference
         input_tensor = self.transform(image).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
             output = self.model(input_tensor)
             probabilities = F.softmax(output, dim=1)
 
-        # Get top-K predictions
         top_probs, top_indices = torch.topk(probabilities, k=min(top_k, self.num_classes), dim=1)
 
         predictions = []

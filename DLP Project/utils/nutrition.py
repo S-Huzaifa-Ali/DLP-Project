@@ -1,8 +1,3 @@
-"""
-Nutrition lookup utility — maps predicted food labels to nutritional data.
-Supports portion size estimation and fuzzy matching.
-"""
-
 import json
 import os
 import re
@@ -11,7 +6,6 @@ import config
 
 
 class NutritionLookup:
-    """Loads nutrition data and provides lookup by food name with fuzzy matching."""
 
     PORTION_MULTIPLIERS = {
         "small": 0.5, "medium": 1.0, "large": 1.5, "extra_large": 2.0
@@ -24,7 +18,6 @@ class NutritionLookup:
         self._load_data()
 
     def _load_data(self):
-        """Load nutrition data from JSON file."""
         if not os.path.exists(self.data_path):
             raise FileNotFoundError(f"Nutrition data not found at: {self.data_path}")
         with open(self.data_path, "r", encoding="utf-8") as f:
@@ -36,12 +29,10 @@ class NutritionLookup:
         print(f"[Nutrition] Loaded {len(self.food_data)} food items")
 
     def _parse_serving_weight_grams(self, serving_size_str):
-        """Parse weight in grams from serving_size string. E.g. '3 pieces (~75g)' → 75.0"""
         match = re.search(r"~\s*(\d+\.?\d*)\s*g", serving_size_str, re.IGNORECASE)
         return float(match.group(1)) if match else None
 
     def _fuzzy_match(self, query, threshold=0.6):
-        """Find best matching food item using fuzzy string matching."""
         query_lower = query.lower().strip().replace("_", " ")
         if query_lower in self.food_name_map:
             return self.food_name_map[query_lower]
@@ -54,7 +45,6 @@ class NutritionLookup:
         return best_match if best_score >= threshold else None
 
     def estimate_portion_size(self, bbox_area_ratio):
-        """Estimate portion category from bounding box area ratio."""
         if bbox_area_ratio < 0.05:
             return "small", 0.5
         elif bbox_area_ratio < 0.15:
@@ -65,10 +55,6 @@ class NutritionLookup:
             return "extra_large", 2.0
 
     def get_nutrition(self, food_name, portion_multiplier=1.0, bbox_area_ratio=None):
-        """
-        Get nutritional info for a food item, adjusted for portion size.
-        Returns dict with adjusted and reference values, or None if not found.
-        """
         item = self._fuzzy_match(food_name)
         if item is None:
             return None
@@ -94,7 +80,6 @@ class NutritionLookup:
         }
 
     def search_foods(self, query, limit=10):
-        """Search for food items matching a query string."""
         query_lower = query.lower().strip().replace("_", " ")
         results = []
         for item in self.food_data:
